@@ -1,0 +1,33 @@
+#!/bin/sh
+# On my computer, this file gets sourced when the shell starts in this directory.
+# If that's not the case for you, manually do: . .sourced
+
+
+# Just for fun (and to know what's the current project)
+printf '\033[0m\n'
+printf '\033[31m%s\n' ' --  -___ - --  ___ ___'
+printf '\033[33m%s\n'   '   - / _ \___- / (_) _/__ ___ __'
+printf '\033[32m%s\n'   '- - / ___/ _ \/ / / _/ _ `/\ \ /'
+printf '\033[36m%s\n'   ' - /_/   \___/_/_/_/ \_,_//_\_\ '
+printf '%s\n'           '  - -'
+printf '\033[34m%s\n'   '- Polifax: a simple bitmap font'
+printf '\033[35m%s\n'   '  -  - -- - - - based on Fairfax'
+printf '\033[0m%s\n'
+
+# Environment Variables
+POLIFAX_HOME=$PWD
+PATH=$POLIFAX_HOME/bin:$PATH
+POLIFAX=$POLIFAX_HOME/polifax.kbitx
+FAIRFAX=$POLIFAX_HOME/fairfax/Fairfax.kbitx
+POLIFAX_FULL=$POLIFAX_HOME/build/polifax-full.kbitx
+POLIFAX_ASCII=$POLIFAX_HOME/build/polifax-ascii.kbitx
+export POLIFAX_HOME PATH POLIFAX FAIRFAX POLIFAX_FULL POLIFAX_ASCII
+
+# Quick checks
+[ -f "$FAIRFAX" ] || echo 'WARNING: Cannot find Fairfax kbitx' >&2
+[ -f "$POLIFAX" ] || echo 'WARNING: Cannot find Polifax kbitx' >&2
+# (Having a UTF-8 locale properly set up is recommended)
+locale | grep -qi 'utf-8\|utf8' || echo 'WARNING: No UTF-8 locale' >&2
+
+# Useful aliases...
+alias polifax_edit='bitsnpicas edit "$POLIFAX"'
