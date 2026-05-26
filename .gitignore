@@ -1,0 +1,10 @@
+# "build" folder
+build/
+
+# temporary stuff
+tmp/
+*.tmp
+
+# possible stuff from text editors
+*.swp
+*~
