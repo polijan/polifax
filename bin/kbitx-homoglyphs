@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Usage: $0 KBITX_FILE
+# Print codepoints of all homoglyphs (glyphs with the exact same visuals) in a
+# given Bits'n'Picas .kbitx font file.
+#
+# Note:
+# - kbitx fonts are XML files but each glyph definition is usually written on
+#   its own line. This script assumes it is the case.
+# - This script does not require Bits'n'Picas
+
+
+set -o pipefail
+
+grep '^<g u="' "$1"          | # <- 1. list all glyphs lines,
+cut -d'"' -f3-               | # <---  isolate the visual definitions,
+sort | uniq -d               | # <---  and only keep the duplicate visuals.
+while IFS= read -r glyph; do   # <- 2. For each dup., grep the whole match
+   grep "$glyph" "$1"          #       whole line definition, incl. the codepoints
+   echo                        #
+done                         | #
+cut -d'"' -f2                  # <- optional: only keep the codepoints
