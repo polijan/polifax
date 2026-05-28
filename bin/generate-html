@@ -1,0 +1,53 @@
+#!/bin/sh
+
+# Usage: $0 font_kbit_file font_ttf_file
+# print an HTML file showing characters in the given font
+
+
+[ -n "$POLIFAX_HOME" ] || exit 3
+. "$POLIFAX_HOME"/bin/functions.sh
+
+KBITX=$1
+TTF=$(basename "$2")
+FONTNAME=$(grep '^<name id="1" ' "$KBITX"  | cut -f4 -d '"')
+
+#-------------------------------------------------------------------------------
+cat << EOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FONTNAME</title>
+<style>
+    @font-face {
+        font-family: "$FONTNAME";
+        src: url("$TTF") format("truetype");
+    }
+
+    body {
+        font-family: "$FONTNAME";
+        font-size: 24px;
+        margin: 20px;
+        background: #f5f5f5;
+    }
+</style>
+</head>
+<body>
+<div style="font-size:36px;margin-bottom:1em">All characters from ${FONTNAME}</div>
+
+EOF
+#-------------------------------------------------------------------------------
+
+grep '^<g u="' "$KBITX" |
+cut -d'"' -f2             |
+while IFS= read -r code; do
+   printf '%b ' "$(utf8_chr -d "$code")"
+done
+
+#-------------------------------------------------------------------------------
+cat << EOF
+
+</body>
+</html>
+EOF

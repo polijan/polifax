@@ -1,0 +1,101 @@
+#!/bin/sh
+
+# Usage: $0
+#    Print general info about Polifax and Fairfax .kbitx files
+#
+# Usage: $0 UTF8_ENCODED_CHARACTER
+#    Print info about the given UTF-8 byte sequence
+#
+# Usage: $0 [-d|-x] CODEPOINT
+#    Print info about the character with the given codepoint
+#    -d  codepoint is in decimal
+#    -x  codepoint is in hexadecimal
+
+#-------------------------------------------------------------------------------
+
+[ -n "$POLIFAX_HOME" ] || exit 3
+. "$POLIFAX_HOME"/bin/functions.sh
+
+
+# Coloring
+H=''; B=''; E=''
+[ -t 1 ] && { H='\033[1;33m'; B='\033[32m'; E='\033[0m'; }
+
+
+# Usage: info_code codepoint_decimal
+# Print information about the given Unicode codepoint
+info_code() {
+   ch=$(utf8_chr -d "$1") || usage
+   printf '%bCharacter         :%b %b\n'     "$B" "$E" "$ch"
+   printf '%bCodepoint (Hex.)  :%b U+%04X\n' "$B" "$E" "$1"
+   printf '%bCodepoint (Dec.)  :%b %d\n'     "$B" "$E" "$1"
+   printf '%bprintf %%b sequence:%b %s\n'    "$B" "$E" "$ch"
+
+   glyph_p=$(grep "^<g u=\"$1\"" "$POLIFAX" || printf '[Unavailable]')
+   glyph_f=$(grep "^<g u=\"$1\"" "$FAIRFAX" || printf '[Unavailable]')
+   if [ "$glyph_p" = "$glyph_f" ]; then
+      printf '%bFairfax / Polifax :%b %s\n' "$B" "$E" "$glyph_f"
+   else
+      printf '%bPolifax           :%b %s\n' "$B" "$E" "$glyph_p"
+      printf '%bFairfax           :%b %s\n' "$B" "$E" "$glyph_f"
+   fi
+
+   h=$(fairfax_homoglyphs "$1" | tr '\n' ' ')
+   [ -n "$h" ] && printf "%bFairfax homoglyphs:%b %s\n" "$B" "$E" "$h"
+   h=$(polifax_homoglyphs "$1" | tr '\n' ' ')
+   [ -n "$h" ] && printf "%bPolifax homoglyphs:%b %s\n" "$B" "$E" "$h"
+
+   # Get extra info *if* we have the 'unicode' command available on our system
+   # - package (debian): unicode
+   # - website: http://kassiopeia.juls.savba.sk/~garabik/software/unicode.html
+   command -v 'unicode' >/dev/null && { echo; unicode -d "$1"; }
+}
+
+
+# Usage: info_kbitx KBITX_FILE TITLE
+# Print information about the given kbitx file
+info_kbitx() {
+   printf '%b%s%b\n' "$H" "$2" "$E"
+
+   size=$(wc -c "$1" | cut -d' ' -f1)
+   printf '  %bsize (Kb)%b   %7d\n' "$B" "$E" "$((size / 1024))"
+
+   n_glyphs=$(grep -c '^<g u="' "$1")
+   printf '  %bglyphs%b      %7d\n' "$B" "$E" "$n_glyphs"
+
+   n_uni=$(kbitx_non_pua "$1" | wc -l)
+   printf '    %b- unicode%b %7d\n' "$B" "$E" "$n_uni"
+   printf '    %b- PUA%b     %7d\n' "$B" "$E" "$((n_glyphs - n_uni))"
+
+   # count homoglyphs
+   n_homo=$(grep '^<g u="' "$1" | # <-- grep all glyph lines,
+            cut -d'"' -f3-      | # <-- isolate glyph definitions,
+            sort | uniq -d      | # <-- sort & remove lines that aren't repeated
+            wc -l)
+   printf '  %bhomoglyphs%b  %7d\n\n' "$B" "$E" "$n_homo"
+}
+
+
+#-------------------------------------------------------------------------------
+
+case $# in
+   0) info_kbitx "$FAIRFAX"       'Fairfax      '
+      info_kbitx "$POLIFAX_FULL"  'Polifax-full '
+      info_kbitx "$POLIFAX_ASCII" 'Polifax-ascii'
+      info_kbitx "$POLIFAX"       'Polifax      '
+      ;;
+
+   1) case $1 in
+         -h|--help) usage - ;;
+                 *) [ "$(printf %s "$1" | wc -c)" -le 4 ] || usage
+                    info_code "$(utf8_ord "$1")" ;;
+      esac;;
+
+   2) case $1 in
+         -d) info_code "$2";;
+         -x) info_code "$(printf %d "0x$2" 2>/dev/null)";;
+          *) usage;;
+      esac;;
+
+   *) usage;;
+esac
