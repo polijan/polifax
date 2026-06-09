@@ -19,11 +19,18 @@ It comes in several versions:
 3. **Polifax-ascii**: Only contains the printable ASCII glyphs. Very lightweight.
 
 
-## Tools required to build the fonts
+## Build the fonts
 
-* Posix environment tools
+Requirements:
+
+* Linux / Posix environment tools
 * Python interpreter
 * The [Bits'n'Picas](https://github.com/kreativekorp/bitsnpicas) bitmap font editor
+
+Build:
+
+* Source the `.source` file in your environment.
+* Then, simply do `make` to generate the fonts (and more)
 
 ## Tips & Tricks
 
