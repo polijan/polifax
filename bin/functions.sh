@@ -125,8 +125,55 @@ usage() {
 
 
 #-------------------------------------------------------------------------------
-# Portable functions to deal with UTF-8 characters
+# Portable functions to deal with (UTF-8) characters
 #-------------------------------------------------------------------------------
+
+
+# Usage: tr_chars FROM TO
+# translate characters positionally like tr(1) ...
+# but the difference to tr(1) is that FROM and TO are interpreted as
+# sequences of characters/codepoints (as per your locale), not just bytes.
+tr_chars() {
+   # Could be implement with sed y/.../.../, but on some systems sed(1) doesn't
+   # have specific UTF-8 support in y (for exmaple, in busybox). So, this is
+   # implemented with awk(1) instead (This requires awk(1) to have proper
+   # character support, but most modern awk have it)
+   #
+   # NOTE: Extra characters in FROM with no corresponding character in TO are
+   #       DELETED.
+
+   awk -v FROM="$1" \
+       -v TO="$2"   '
+       BEGIN {
+          # Build translation table (character-by-character)
+          nf = split(FROM, f, "")
+          nt = split(TO, t, "")
+
+          for (i = 1; i <= nf; i++) {
+             if (i <= nt)
+                map[f[i]] = t[i]
+             else
+                map[f[i]] = ""
+          }
+       }
+
+       {
+          out = ""
+
+          n = split($0, chars, "")
+          for (i = 1; i <= n; i++) {
+             c = chars[i]
+
+             if (c in map)
+                out = out map[c]
+             else
+                out = out c
+          }
+
+          print out
+       }'
+}
+
 
 # Usage: utf8_ord character
 # Print the codepoint (in decimal) of the given character.

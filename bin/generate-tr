@@ -1,0 +1,104 @@
+#!/bin/sh
+
+# Usage: $0
+# Print a script which transforms characters not in Polifax into similar-looking
+# Polifax characters
+
+
+[ -n "$POLIFAX_HOME" ] || exit 3
+. "$POLIFAX_HOME"/bin/functions.sh
+
+# Usage: homoglyphs CODEPOINT
+# For the character with the given *decimal* codepoint in *Polifax*,
+# print the list of all other characters from *Polifax FULL* which
+# have the same visual representation.
+homoglyphs() {
+   [ $# -eq 1 ] || return 2
+   case $1 in ''|*[!0-9]*) return 2;; esac
+
+   # If the character is in Polifax, gets its glyph declaration, which will act
+   # as a pattern identifying the visual for the given code.
+   visual=$(grep "^<g u=\"$1\" " "$POLIFAX" | cut -d '"' -f 3-)
+   [ -n "$visual" ] || return
+
+   grep -F "$visual" "$POLIFAX_FULL" | # <- all lines with the same visual
+   cut -d '"' -f 2                   | # <- extract the corresponding codepoints
+   grep -v "^$1$"                      # <- exclude the original code
+}
+
+# Usage: sed_command CODEPOINT
+# If CHAR is the character of the given decimal codepoint, prints sed s commands
+# replacing the homoglyph(s) characters of CHAR with CHAR itself.
+# Thus it prints command like:  s/[homoglyph(s) of chars]/char \ 
+sed_command() {
+   homoglyphs "$1" |
+   {  [ "$1" -eq 47 ] && sep='|' || sep='/'
+      [ "$1" -eq 39 ] && quo='"' || quo="'"
+
+      printf '     -e %ss%s[' "$quo" "$sep"
+      while IFS= read -r cp; do
+         printf %b "$(utf8_chr -d "$cp")"
+      done
+      printf ']%s%b%sg%s \\\n' "$sep" "$(utf8_chr -d "$1")" "$sep" "$quo"
+   }
+}
+
+
+
+#-------------------------------------------------------------------------------
+# Script's Preamble
+#-------------------------------------------------------------------------------
+[ -f "$POLIFAX_FULL" ] || die "you need to build polifax-full's kbitx"
+cat << EOF
+#!/bin/sh
+
+# Usage: $0 [EXTRA_SED_ARGS]...
+# Filter that transforms some characters which are not in Polifax repertoire
+# to similar looking character present in Polifax.
+
+sed  \\
+EOF
+
+#-------------------------------------------------------------------------------
+# Script's generated rules from homoglyphs
+#-------------------------------------------------------------------------------
+grep '^<g u="' "$POLIFAX" | # <-- all glyphs in Polifax
+cut -d '"' -f 2           | # <-- only select their codepoint
+while IFS= read -r c; do
+   sed_command "$c"         # <-- issue s/[...]/.../g commands
+done                      |
+grep -F -v '/[]/'           # <-- remove "empty" (s/[]/.../g) commands
+
+#-------------------------------------------------------------------------------
+# Script's generated rules from homoglyphs
+#
+# Apply Unicode character replacements for glyphs which are not in Polifax-mini.
+# Those replacements do not correspond to 100% identical glyphs in Polifax-full,
+# but are nevertheless visually close.
+#-------------------------------------------------------------------------------
+
+# The above SRC and DST characters are not pure homoglyphs in Polifax-full, but
+# are nevertheless visually close, and are omitted anyway from Polifax-mini and
+# replacements could then be applied. Here are the details:
+#
+# 1. Greek small beta β (U+03B2)    --> german ß (U+00DF)
+# 2. n-ary product sign ∏ (U+220F)  --> Greek capital Pi Π (U+03A0)
+# 3. n-ary summation sign ∑ (U+2211) -> Greek capital Sigma Σ (U+03A3)
+#
+# 4. Florin sign ƒ (U+0192, LATIN SMALL LETTER F WITH HOOK) from Windows-1252
+#    --> Math Italic 𝑓 (U+1D44E5)
+#    ==> TODO: We may think to change 𝑓 slightly in Polifax!
+# 5. ❤ (U+2764) --> ♥ (U+2665, heart suit from CP437)
+# 6. ⚞ and ⚟ (U+269E and U+269F) --> 🗦🗧 (U+1F5E6 and U+1F5E7)
+# https://en.wikipedia.org/wiki/Code_page_437
+# => TODO: checkmark and square root
+SRC='β∏∑ ƒ❤⚞⚟'
+DST='ßΠΣ 𝑓♥🗦🗧'
+
+# box drawing heavy -> normal
+SRC=${SRC}'━┃┅┇┉┋┍┎┏┑┒┓┕┖┗┙┚┛┝┞┟┠┡┢┣┥┦┧┨┩┪┫┭┮┯┰┱┲┳┵┶┷┸┹┺┻┽┾┿╀╁╂╃╄╅╆╇╈╉╊╋╍╏╸╹╺╻╼╽╾╿'
+DST=${DST}'─│┄┆┈┊┌┌┌┐┐┐└└└┘┘┘├├├├├├├┤┤┤┤┤┤┤┬┬┬┬┬┬┬┴┴┴┴┴┴┴┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼╌╎╴╵╶╷─│─│'
+
+printf '\\\n'
+printf "     -e 'y/%s/%s/'" "$SRC" "$DST"
+printf '\\\n     "$@"\n'

@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-all: build/polifax.html build/polifax-full.html build/polifax-ascii.html
+all: build/polifax.html build/polifax-full.html build/polifax-ascii.html build/polifax-tr
 
 clean:
 	rm -f build/*
@@ -66,3 +66,13 @@ build/polifax-ascii.html: build/polifax-ascii.kbitx build/polifax-ascii.ttf
 	@printf '\n\033[1;32mGenerating html test file %s:\033[m\n' $@
 	@mkdir -p $(@D)
 	generate-html $^ > $@
+
+#-------------------------------------------------------------------------------
+# executables
+#-------------------------------------------------------------------------------
+
+build/polifax-tr: build/polifax-full.kbitx polifax.kbitx
+	@printf '\n\033[1;32mGenerating %s excutable (may be slow):\033[m\n' $@
+	@mkdir -p $(@D)
+	generate-tr > $@
+	chmod a+x $@
